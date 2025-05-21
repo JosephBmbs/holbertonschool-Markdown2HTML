@@ -1,7 +1,7 @@
 <h1 align="center">Markdown to HTML</h1>
 
 <p align="center">
-  <img src="https://miro.medium.com/v2/resize:fit:1346/format:webp/1*7xWQaJtUL3UU2YE8Q0qp6Q.gif" alt="Markdown Logo" width="150">
+  <img src="https://miro.medium.com/v2/resize:fit:1346/format:webp/1*7xWQaJtUL3UU2YE8Q0qp6Q.gif" alt="Markdown Logo" >
 </p>
 
 > Novice Level  
