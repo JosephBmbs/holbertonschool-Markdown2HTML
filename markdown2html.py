@@ -2,7 +2,7 @@
 """
 This script converts a Markdown file to HTML,
 handling headings (# to ######), unordered lists (- item),
-and ordered lists (* item).
+ordered lists (* item), and paragraphs with line breaks.
 """
 
 import sys
@@ -16,14 +16,31 @@ def convert_markdown(lines):
     Returns a list of HTML lines.
     """
     html_lines = []
-    in_ul = False  # Are we inside a <ul> block?
-    in_ol = False  # Are we inside an <ol> block?
+    in_ul = False
+    in_ol = False
+    paragraph_buffer = []  # pour accumuler les lignes d'un paragraphe
+
+    def flush_paragraph():
+        """Convert accumulated paragraph lines to HTML and append to html_lines."""
+        nonlocal paragraph_buffer
+        if not paragraph_buffer:
+            return
+        html_lines.append("<p>")
+        # On joint les lignes avec <br/> sauf la dernière
+        for i, pline in enumerate(paragraph_buffer):
+            if i < len(paragraph_buffer) - 1:
+                html_lines.append(f"{pline}<br/>")
+            else:
+                html_lines.append(pline)
+        html_lines.append("</p>")
+        paragraph_buffer = []
 
     for line in lines:
-        stripped = line.strip()
+        stripped = line.rstrip('\n').rstrip()
 
-        # Skip empty lines
+        # Ligne vide : on doit finir paragraphes et listes en cours
         if not stripped:
+            flush_paragraph()
             if in_ul:
                 html_lines.append("</ul>")
                 in_ul = False
@@ -32,8 +49,9 @@ def convert_markdown(lines):
                 in_ol = False
             continue
 
-        # Ordered list item (*)
+        # Liste ordonnée (* )
         if re.match(r'^\* ', stripped):
+            flush_paragraph()
             if in_ul:
                 html_lines.append("</ul>")
                 in_ul = False
@@ -44,8 +62,9 @@ def convert_markdown(lines):
             html_lines.append(f"<li>{item}</li>")
             continue
 
-        # Unordered list item (-)
+        # Liste non ordonnée (- )
         if re.match(r'^- ', stripped):
+            flush_paragraph()
             if in_ol:
                 html_lines.append("</ol>")
                 in_ol = False
@@ -56,7 +75,7 @@ def convert_markdown(lines):
             html_lines.append(f"<li>{item}</li>")
             continue
 
-        # If we leave any list
+        # Si on était dans une liste, on la ferme
         if in_ul:
             html_lines.append("</ul>")
             in_ul = False
@@ -64,16 +83,20 @@ def convert_markdown(lines):
             html_lines.append("</ol>")
             in_ol = False
 
-        # Headings
+        # Titres
         heading_match = re.match(r'^(#{1,6})\s+(.*)', stripped)
         if heading_match:
+            flush_paragraph()
             level = len(heading_match.group(1))
             content = heading_match.group(2).strip()
             html_lines.append(f"<h{level}>{content}</h{level}>")
-        else:
-            html_lines.append(f"<p>{stripped}</p>")
+            continue
 
-    # Close any open list at end of file
+        # Tout ce qui reste c'est du texte (paragraphe)
+        paragraph_buffer.append(stripped)
+
+    # Fin du fichier : flush paragraph et listes ouvertes
+    flush_paragraph()
     if in_ul:
         html_lines.append("</ul>")
     if in_ol:
