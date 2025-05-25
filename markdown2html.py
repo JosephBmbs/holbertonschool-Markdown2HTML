@@ -1,45 +1,66 @@
 #!/usr/bin/python3
 """
-This script converts a Markdown file to HTML,
-handling headings (# to ######), unordered lists (- item),
-ordered lists (* item), and paragraphs with line breaks.
+Convert Markdown to HTML with:
+- Headings (# to ######)
+- Unordered lists (-)
+- Ordered lists (*)
+- Paragraphs with <br /> for line breaks inside paragraphs
+- Bold (**text**), Italic (__text__)
+- Special syntaxes [[text]] -> md5(text), ((text)) -> remove all c/C
 """
 
 import sys
 import os
 import re
+import hashlib
+
+
+def replace_bold_italic(text):
+    text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
+    text = re.sub(r'__(.+?)__', r'<em>\1</em>', text)
+    return text
+
+
+def replace_special_syntax(text):
+    def md5_replacer(match):
+        content = match.group(1)
+        return hashlib.md5(content.encode('utf-8')).hexdigest()
+
+    def remove_c_replacer(match):
+        content = match.group(1)
+        return re.sub(r'[cC]', '', content)
+
+    text = re.sub(r'\[\[(.+?)\]\]', md5_replacer, text)
+    text = re.sub(r'\(\((.+?)\)\)', remove_c_replacer, text)
+    return text
 
 
 def convert_markdown(lines):
-    """
-    Convert a list of Markdown lines to HTML lines.
-    Returns a list of HTML lines.
-    """
     html_lines = []
     in_ul = False
     in_ol = False
-    paragraph_buffer = []  # pour accumuler les lignes d'un paragraphe
+    paragraph_buffer = []
 
     def flush_paragraph():
-        """Convert accumulated paragraph lines to HTML and append to html_lines."""
         nonlocal paragraph_buffer
         if not paragraph_buffer:
             return
         html_lines.append("<p>")
-        # On joint les lignes avec <br/> sauf la dernière
         for i, pline in enumerate(paragraph_buffer):
+            line = replace_bold_italic(pline)
+            line = replace_special_syntax(line)
             if i < len(paragraph_buffer) - 1:
-                html_lines.append(f"{pline}<br/>")
+                html_lines.append(f"{line}<br/>")
             else:
-                html_lines.append(pline)
+                html_lines.append(line)
         html_lines.append("</p>")
         paragraph_buffer = []
 
     for line in lines:
         stripped = line.rstrip('\n').rstrip()
 
-        # Ligne vide : on doit finir paragraphes et listes en cours
         if not stripped:
+            # Empty line: flush paragraph and close lists if open
             flush_paragraph()
             if in_ul:
                 html_lines.append("</ul>")
@@ -49,7 +70,6 @@ def convert_markdown(lines):
                 in_ol = False
             continue
 
-        # Liste ordonnée (* )
         if re.match(r'^\* ', stripped):
             flush_paragraph()
             if in_ul:
@@ -59,10 +79,11 @@ def convert_markdown(lines):
                 html_lines.append("<ol>")
                 in_ol = True
             item = stripped[2:].strip()
+            item = replace_bold_italic(item)
+            item = replace_special_syntax(item)
             html_lines.append(f"<li>{item}</li>")
             continue
 
-        # Liste non ordonnée (- )
         if re.match(r'^- ', stripped):
             flush_paragraph()
             if in_ol:
@@ -72,10 +93,12 @@ def convert_markdown(lines):
                 html_lines.append("<ul>")
                 in_ul = True
             item = stripped[2:].strip()
+            item = replace_bold_italic(item)
+            item = replace_special_syntax(item)
             html_lines.append(f"<li>{item}</li>")
             continue
 
-        # Si on était dans une liste, on la ferme
+        # If a list was open but now no list item, close it
         if in_ul:
             html_lines.append("</ul>")
             in_ul = False
@@ -83,19 +106,21 @@ def convert_markdown(lines):
             html_lines.append("</ol>")
             in_ol = False
 
-        # Titres
+        # Headings
         heading_match = re.match(r'^(#{1,6})\s+(.*)', stripped)
         if heading_match:
             flush_paragraph()
             level = len(heading_match.group(1))
             content = heading_match.group(2).strip()
+            content = replace_bold_italic(content)
+            content = replace_special_syntax(content)
             html_lines.append(f"<h{level}>{content}</h{level}>")
             continue
 
-        # Tout ce qui reste c'est du texte (paragraphe)
+        # Otherwise, accumulate line in paragraph buffer
         paragraph_buffer.append(stripped)
 
-    # Fin du fichier : flush paragraph et listes ouvertes
+    # End of file: flush any remaining paragraph and close lists
     flush_paragraph()
     if in_ul:
         html_lines.append("</ul>")
@@ -117,21 +142,14 @@ def main():
         sys.stderr.write(f"Missing {input_file}\n")
         sys.exit(1)
 
-    try:
-        with open(input_file, 'r') as f_in:
-            lines = f_in.readlines()
+    with open(input_file, 'r') as f_in:
+        lines = f_in.readlines()
 
-        html_output = convert_markdown(lines)
+    html_output = convert_markdown(lines)
 
-        with open(output_file, 'w') as f_out:
-            for html_line in html_output:
-                f_out.write(html_line + '\n')
-
-    except Exception as e:
-        sys.stderr.write(f"Error: {e}\n")
-        sys.exit(1)
-
-    sys.exit(0)
+    with open(output_file, 'w') as f_out:
+        for html_line in html_output:
+            f_out.write(html_line + '\n')
 
 
 if __name__ == "__main__":
