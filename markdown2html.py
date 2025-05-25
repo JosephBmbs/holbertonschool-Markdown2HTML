@@ -18,6 +18,7 @@ def main():
         sys.stderr.write(f"Missing {input_file}\n")
         sys.exit(1)
 
+
     sys.exit(0)
 
 if __name__ == "__main__":
