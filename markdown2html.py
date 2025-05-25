@@ -30,7 +30,7 @@ def replace_special_syntax(text):
 
 
 def replace_bold_italic(text):
-    # Apply bold first, then italic (after special syntax)
+    # Replace bold first, then italic
     text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
     text = re.sub(r'__(.+?)__', r'<em>\1</em>', text)
     return text
@@ -48,7 +48,7 @@ def convert_markdown(lines):
             return
         html_lines.append("<p>")
         for i, pline in enumerate(paragraph_buffer):
-            # First replace special syntax, then bold/italic
+            # Apply special syntax then bold/italic
             line = replace_special_syntax(pline)
             line = replace_bold_italic(line)
             if i < len(paragraph_buffer) - 1:
@@ -61,8 +61,8 @@ def convert_markdown(lines):
     for line in lines:
         stripped = line.rstrip('\n')
 
+        # Empty line: flush paragraph and close lists if open
         if not stripped.strip():
-            # Empty line: flush paragraph and close lists if open
             flush_paragraph()
             if in_ul:
                 html_lines.append("</ul>")
