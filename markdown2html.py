@@ -15,12 +15,6 @@ import re
 import hashlib
 
 
-def replace_bold_italic(text):
-    text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
-    text = re.sub(r'__(.+?)__', r'<em>\1</em>', text)
-    return text
-
-
 def replace_special_syntax(text):
     def md5_replacer(match):
         content = match.group(1)
@@ -32,6 +26,13 @@ def replace_special_syntax(text):
 
     text = re.sub(r'\[\[(.+?)\]\]', md5_replacer, text)
     text = re.sub(r'\(\((.+?)\)\)', remove_c_replacer, text)
+    return text
+
+
+def replace_bold_italic(text):
+    # Apply bold first, then italic (after special syntax)
+    text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
+    text = re.sub(r'__(.+?)__', r'<em>\1</em>', text)
     return text
 
 
@@ -47,19 +48,20 @@ def convert_markdown(lines):
             return
         html_lines.append("<p>")
         for i, pline in enumerate(paragraph_buffer):
-            line = replace_bold_italic(pline)
-            line = replace_special_syntax(line)
+            # First replace special syntax, then bold/italic
+            line = replace_special_syntax(pline)
+            line = replace_bold_italic(line)
             if i < len(paragraph_buffer) - 1:
-                html_lines.append(f"{line}<br/>")
+                html_lines.append(f"{line}<br />")
             else:
                 html_lines.append(line)
         html_lines.append("</p>")
         paragraph_buffer = []
 
     for line in lines:
-        stripped = line.rstrip('\n').rstrip()
+        stripped = line.rstrip('\n')
 
-        if not stripped:
+        if not stripped.strip():
             # Empty line: flush paragraph and close lists if open
             flush_paragraph()
             if in_ul:
@@ -70,6 +72,7 @@ def convert_markdown(lines):
                 in_ol = False
             continue
 
+        # Ordered list item (* )
         if re.match(r'^\* ', stripped):
             flush_paragraph()
             if in_ul:
@@ -79,11 +82,12 @@ def convert_markdown(lines):
                 html_lines.append("<ol>")
                 in_ol = True
             item = stripped[2:].strip()
-            item = replace_bold_italic(item)
             item = replace_special_syntax(item)
+            item = replace_bold_italic(item)
             html_lines.append(f"<li>{item}</li>")
             continue
 
+        # Unordered list item (- )
         if re.match(r'^- ', stripped):
             flush_paragraph()
             if in_ol:
@@ -93,12 +97,12 @@ def convert_markdown(lines):
                 html_lines.append("<ul>")
                 in_ul = True
             item = stripped[2:].strip()
-            item = replace_bold_italic(item)
             item = replace_special_syntax(item)
+            item = replace_bold_italic(item)
             html_lines.append(f"<li>{item}</li>")
             continue
 
-        # If a list was open but now no list item, close it
+        # Close any open lists if current line is not a list item
         if in_ul:
             html_lines.append("</ul>")
             in_ul = False
@@ -106,21 +110,21 @@ def convert_markdown(lines):
             html_lines.append("</ol>")
             in_ol = False
 
-        # Headings
+        # Headings (# to ######)
         heading_match = re.match(r'^(#{1,6})\s+(.*)', stripped)
         if heading_match:
             flush_paragraph()
             level = len(heading_match.group(1))
             content = heading_match.group(2).strip()
-            content = replace_bold_italic(content)
             content = replace_special_syntax(content)
+            content = replace_bold_italic(content)
             html_lines.append(f"<h{level}>{content}</h{level}>")
             continue
 
-        # Otherwise, accumulate line in paragraph buffer
+        # Otherwise accumulate paragraph lines
         paragraph_buffer.append(stripped)
 
-    # End of file: flush any remaining paragraph and close lists
+    # Flush any remaining paragraphs and close lists at EOF
     flush_paragraph()
     if in_ul:
         html_lines.append("</ul>")
