@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """
-A Script that converts a Markdown file to HTML.
+This is a script that converts a Markdown file to HTML.
 """
 
 import sys
@@ -17,12 +17,6 @@ def main():
     if not os.path.isfile(input_file):
         sys.stderr.write(f"Missing {input_file}\n")
         sys.exit(1)
-
-    with open(input_file, 'r') as md_file:
-        markdown_text = md_file.read()
-
-    with open(output_file, 'w') as html_file:
-        html_file.write(markdown_text)
 
     sys.exit(0)
 
