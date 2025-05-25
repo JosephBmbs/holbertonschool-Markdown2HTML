@@ -1,10 +1,11 @@
 #!/usr/bin/python3
 """
-This is a script that converts a Markdown file to HTML.
+This script converts a Markdown file to HTML.
 """
 
 import sys
 import os
+
 
 def main():
     if len(sys.argv) < 3:
@@ -18,12 +19,13 @@ def main():
         sys.stderr.write(f"Missing {input_file}\n")
         sys.exit(1)
 
-    # Minimal conversion: wrap each line in <p>
+    # Minimal conversion: wrap each line in <p> tags
     with open(input_file, 'r') as f_in, open(output_file, 'w') as f_out:
         for line in f_in:
             f_out.write("<p>{}</p>\n".format(line.strip()))
 
     sys.exit(0)
+
 
 if __name__ == "__main__":
     main()
